@@ -1,0 +1,12 @@
+config {
+  type: "declaration",
+  database:"springer-nature-analytics",
+  schema:"shreyas_collections_EU",
+  name:"rejected_for_publication",
+  description:"getting relevent data from authors"
+}
+
+-- select *
+-- from 
+--   ${ref("table_name")} / schema.table_name
+-- read more about ref() in the documentation tab -->

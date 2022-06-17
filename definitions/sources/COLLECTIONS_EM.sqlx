@@ -1,0 +1,12 @@
+config {
+  type: "declaration",
+  database:"snprojectc3ea67b4",
+  schema:"zz_analytics_centre_of_exellence",
+  name:"COLLECTIONS_EM",
+  description:"getting relevent data from EM peer review system"
+}
+
+-- select *
+-- from 
+--   ${ref("table_name")} / schema.table_name
+-- read more about ref() in the documentation tab -->

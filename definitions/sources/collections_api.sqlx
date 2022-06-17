@@ -1,0 +1,13 @@
+config {
+  type: "declaration",
+  database:"springer-nature-analytics",
+  schema:"shreyas_collections_EU",
+  name:"collections",
+  description:"getting relevent data from authors"
+
+}
+
+-- select *
+-- from dimensions-ai.data_analytics_eu.publications
+--   ${ref("table_name")} / schema.table_name
+-- read more about ref() in the documentation tab -->

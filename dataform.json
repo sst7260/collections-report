@@ -1,6 +1,6 @@
 {
     "warehouse": "bigquery",
-    "defaultSchema": "dataform",
+    "defaultSchema": "shreyas_collection_staging",
     "assertionSchema": "dataform_assertions",
     "defaultDatabase": "springer-nature-analytics "
 }

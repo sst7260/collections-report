@@ -1,0 +1,217 @@
+config {
+  type: "table",
+  database:"springer-nature-analytics",
+  schema:"shreyas_collection_staging ",
+  name:"final_transform",
+  description:"transformedcollections data"
+}
+
+Select *,Case When submissionid<>sub_id2 or sub_id2 is null then decision_status else null end as main_decision_status
+
+From
+(Select distinct snapp_em.* 
+,lag(submissionid) over(order by submissionid) as sub_id2
+,tbl_j.JournalReportingKey,tbl_j.JournalStatus,tbl_j.JournalBusinessModel,tbl_j.JournalPDDesc,tbl_j.JournalPSDesc,tbl_j.JournalPUDesc
+,date_diff(decision_date,submission_dt,day) as TAT
+,Case When full_coll.plainTextTitle is not null then full_coll.plainTextTitle else main_collectionid end as main_collectionTitle,full_coll.hasArticles
+,full_coll.startDate,DATE(full_coll.publicationDateTime) as pub_date_1
+
+
+FROM
+(Select
+journalId,submissionid,globalsubmissionid,articleTypeId,title,main_versionTag,DATE(main_timestamp) as submission_dt,JournalTitle,main_collectionid
+,coll_titl_2,decision_date,decision_status
+--, NULL as DOI
+,country_code,'SNAPP' as data_source
+,authorName--,editor_name
+,null as SN_Title 
+
+From 
+(
+With submissions_combined as
+(
+  Select D.*  #,E.id,E.actor_emailAddress,E.actor_familyName,E.actor_givenName,E.actor_title,E.actor_userId
+  --,E.reviewer_emailAddress,E.reviewer_familyName,E.reviewer_givenName,E.reviewer_title,E.reviewer_userId
+  ,E.submissionId as esid,E.collectionId as col_id2,E.collectionTitle as coll_titl_2
+  ,Case When D.collectionid is not null then D.collectionid else E.collectionid end as main_collectionid
+  FROM 
+  (
+    Select L.id,L.journalId,L.submissionId,L.globalSubmissionId,L.articleTypeId,L.creatorId,L.title,L.collectionid,L.timestamp as time_1
+    ,M.versionTag,M.revisionVersion,M.amendmentVersion,M.timestamp as time_2,M.actor_userId
+    ,case when M.timestamp > L.timestamp then M.timestamp else L.timestamp end as main_timestamp
+    ,case when M.versionTag> L.versionTag then M.versionTag else L.versionTag end as main_versionTag
+      FROM 
+      (
+        Select A.*
+        FROM 
+        (
+        Select *,row_number()over(partition by submissionId Order by versionTag desc) row_num
+        From ${ref("submission_received")}
+        ) A
+        Where A.row_num=1
+      ) as L
+      left join
+      ( 
+        Select C.* 
+        From
+        (
+        Select * ,row_number()over(partition by submissionId Order by versionTag desc,timestamp desc) as row_nu
+        FROM 
+        (Select *  except(abstract,actor,authors,declarations,files,subjects),actor.userId as actor_userId,actor.emailAddress 
+        From ${ref("submission_revision_received")}
+        UNION DISTINCT 
+        Select * except(abstract,actor,authors,declarations,files,subjects),actor.userId as actor_userId,actor.emailAddress 
+        From ${ref("submission_change_received")} ) 
+        order by submissionId,row_nu
+        ) C
+        Where C.row_nu=1
+      ) as M
+      On L.submissionId=M.submissionId 
+      order by L.submissionId desc 
+  ) D
+  left join 
+  (
+  SELECT *
+  FROM
+  (
+    Select *,row_number()over(partition by collectionId order by versionTag desc,timestamp desc) as rn
+    From
+    (
+    SELECT * except(actor,reviewer) 
+    FROM ${ref("collection_assigned")}  
+    union distinct 
+    SELECT * except(actor,reviewer) 
+    FROM ${ref("collection_unassigned")}
+    )
+  ) A
+  Where A.rn = 1
+  --order by actor_emailAddress,collectionId
+  ) E 
+  On D.submissionid= E.submissionid 
+)
+
+
+--, NAME AS (select "BMC Collection Submissions")
+--View to provide submissions, last_editor_assigned, and final decision
+
+
+, LAST_EDITOR_ASSIGNED AS (
+  -- By submission
+SELECT DISTINCT
+       journalId,
+       submissionID
+       ,editor.givenName as editor_givenName
+       ,editor.familyName as editor_familyName
+       ,MAX(timestamp) OVER (PARTITION BY submissionID) as last_editor_assigned_timestamp 
+FROM ${ref("editor_assigned")}
+)
+, MS_ACCEPTED AS (
+  -- By submission, and will only include first acceptance event timestamp as some manuscripts have multiple events
+SELECT DISTINCT
+       journalId,
+       submissionID,  
+       MIN(timestamp) OVER (PARTITION BY submissionID) as accepted_timestamp 
+FROM ${ref("accepted_for_publication")}  
+GROUP BY 	journalId, submissionID, timestamp
+)
+, MS_REJECTED AS (
+SELECT DISTINCT
+       journalId,
+       submissionID,  
+       MIN(timestamp) OVER (PARTITION BY submissionID) as rejected_timestamp 
+FROM ${ref("rejected_for_publication")}
+GROUP BY 	journalId, submissionID, timestamp
+)
+, MS_WITHDRAWN AS (
+SELECT DISTINCT
+       journalId,
+       submissionID,  
+       MIN(timestamp) OVER (PARTITION BY submissionID) as withdrawn_timestamp 
+FROM ${ref("withdrawn_for_publication")} 
+GROUP BY 	journalId, submissionID, timestamp
+)
+
+, Journal_meta as(SELECT * From ${ref("journal_metadata")})
+
+, Author_data as(
+    Select 
+          sc.submissionId,sc.timestamp,
+  
+          a.affiliation.institutionName as institute,a.affiliation.countryCode as country_code,
+    CONCAT(a.givenName, " ", a.familyName) as authorName, count(*) cnt
+    ,a.corresponding
+    From ${ref("submission_received")} as  sc ,unnest(authors) as a
+    group by sc.submissionId,sc.timestamp,a.affiliation.institutionName,a.affiliation.countryCode,authorName,a.corresponding
+    order by cnt desc 
+    )
+
+
+Select sc.*,jm.JournalTitle,CONCAT(lea.editor_givenName,' ',lea.editor_familyName) as editor_name,lea.last_editor_assigned_timestamp,
+CASE  WHEN afp.accepted_timestamp is not null THEN DATE(afp.accepted_timestamp)
+      When rfp.rejected_timestamp is not null THEN DATE(rfp.rejected_timestamp)
+      When wfp.withdrawn_timestamp is not null THEN DATE(wfp.withdrawn_timestamp)
+      ELSE Null End as decision_date,
+CASE WHEN afp.accepted_timestamp IS NOT NULL THEN 'Accept'
+      WHEN rfp.rejected_timestamp IS NOT NULL THEN 'Reject'
+      WHEN wfp.withdrawn_timestamp IS NOT NULL THEN 'Withdrawn'
+      ELSE 'No Decision' 
+      END AS decision_status
+
+
+,ad.institute,ad.country_code,ad.authorName,ad.corresponding
+
+From submissions_combined as  sc
+left join LAST_EDITOR_ASSIGNED as lea
+On sc.submissionId=lea.submissionID
+left join MS_ACCEPTED afp
+On sc.submissionId = afp.submissionID
+LEFT JOIN MS_REJECTED AS rfp 
+ON sc.submissionId = rfp.submissionID
+LEFT JOIN MS_WITHDRAWN AS wfp 
+ON sc.submissionId = wfp.submissionID
+LEFT JOIN Journal_meta AS jm 
+ON sc.journalID = jm.journalID
+LEFT JOIN Author_data as ad
+On sc.submissionId = ad.submissionId
+
+WHERE sc.collectionid IS NOT NULL 
+--AND ad.corresponding = TRUE
+order by submissionId
+--limit 1000
+)
+
+union all
+
+Select coll_em.SN_ID as journalId	,coll_em.MS_ID as submissionid,null as globalsubmissionid,coll_em.MS_ARTICLE_TYPE as articleTypeId
+, null as title, null as versionTag, DATE(MS_FIRST_RECEIPT_DATE) as submission_dt, SN_TITLE as JournalTitle
+,CASE 
+  WHEN COLLECTION_ARTICLE_TYPE = 'YES' THEN MS_ARTICLE_TYPE
+  WHEN COLLECTION_SUBMISSION_QUESTION = 'YES' THEN MS_SUB_QUESTION_ANSWER
+  WHEN COLLECTION_SECTION = 'YES' THEN MS_SECTION
+  END as collectionId
+,null as coll_titl_2,DATE(coll_em.MS_FINAL_DISPOSITION_DATE) as decision_date
+,Case when coll_em.MS_FINAL_DISPOSITION_TERM is null then 'No Decision' else coll_em.MS_FINAL_DISPOSITION_TERM end as decision_status
+--,coll_em.DOI
+, null as country_code,'EM' as data_source
+,null as authorName--,null as editor_name
+,SN_Title
+
+
+From 
+(Select * From ${ref("COLLECTIONS_EM")} ) as coll_em
+
+) as snapp_em
+
+
+
+---------- PART 2 ---------------
+
+left join (Select * From ${ref("tbl_Journals")}) as tbl_j
+On snapp_em.journalId = tbl_j.JournalKey
+  
+left join (SELECT * FROM ${ref("collections")}) as full_coll
+On snapp_em.main_collectionid = full_coll.id 
+
+Where main_collectionid is not null 
+
+order by snapp_em.submissionid,sub_id2)

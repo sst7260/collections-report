@@ -1,0 +1,12 @@
+config {
+  type: "declaration",
+  database:"bi-production-239213",
+  schema:"MD_Products_IFM",
+  name:"tbl_Journals",
+  description:"getting relevent data from authors"
+}
+
+-- select *
+-- from 
+--   ${ref("table_name")} / schema.table_name
+-- read more about ref() in the documentation tab -->

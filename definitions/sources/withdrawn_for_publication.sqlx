@@ -1,0 +1,12 @@
+config {
+  type: "declaration",
+  database:"springer-nature-analytics",
+  schema:"shreyas_collections_EU",
+  name:"withdrawn_for_publication",
+  description:"data regarding submissions that were withdrawn"
+}
+
+-- select *
+-- from 
+--   ${ref("table_name")} / schema.table_name
+-- read more about ref() in the documentation tab -->
