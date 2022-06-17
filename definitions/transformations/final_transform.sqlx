@@ -1,8 +1,8 @@
 config {
   type: "table",
   database:"springer-nature-analytics",
-  schema:"shreyas_collection_staging ",
-  name:"final_transform",
+  schema:"shreyas_collection_staging",
+  name:"collections_reporting",
   description:"transformedcollections data"
 }
 
