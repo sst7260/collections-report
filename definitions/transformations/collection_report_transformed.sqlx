@@ -1,0 +1,34 @@
+config {
+  type: "table",
+  database:"springer-nature-analytics",
+  schema:"shreyas_collection_staging",
+  name:"collection_report_transformed",
+  description:"transformed collections data"
+}
+
+Select *,Case When submissionid<>sub_id2 or sub_id2 is null then decision_status else null end as main_decision_status
+
+From
+(Select distinct snapp_em.* 
+,lag(submissionid) over(order by submissionid) as sub_id2
+,tbl_j.JournalReportingKey,tbl_j.JournalStatus,tbl_j.JournalBusinessModel,tbl_j.JournalPDDesc,tbl_j.JournalPSDesc,tbl_j.JournalPUDesc
+,date_diff(decision_date,submission_dt,day) as TAT
+,Case When full_coll.plainTextTitle is not null then full_coll.plainTextTitle else main_collectionid end as main_collectionTitle,full_coll.hasArticles
+,full_coll.startDate,DATE(full_coll.publicationDateTime) as pub_date_1,full_coll.status
+
+
+FROM (Select * from ${ref("merged_peer_review_systems")} ) as snapp_em
+
+
+
+---------- PART 2 ---------------
+
+left join (Select * From ${ref("tbl_Journals")}) as tbl_j
+On snapp_em.journalId = tbl_j.JournalKey
+  
+left join (SELECT * FROM ${ref("collections")}) as full_coll
+On snapp_em.main_collectionid = full_coll.id 
+
+Where main_collectionid is not null 
+
+order by snapp_em.submissionid,sub_id2)

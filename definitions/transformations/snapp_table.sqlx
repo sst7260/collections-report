@@ -2,29 +2,17 @@ config {
   type: "table",
   database:"springer-nature-analytics",
   schema:"shreyas_collection_staging",
-  name:"collections_reporting",
-  description:"transformedcollections data"
+  name:"snapp_table",
+  description:"Data from SNAPP peer review system"
 }
 
-Select *,Case When submissionid<>sub_id2 or sub_id2 is null then decision_status else null end as main_decision_status
-
-From
-(Select distinct snapp_em.* 
-,lag(submissionid) over(order by submissionid) as sub_id2
-,tbl_j.JournalReportingKey,tbl_j.JournalStatus,tbl_j.JournalBusinessModel,tbl_j.JournalPDDesc,tbl_j.JournalPSDesc,tbl_j.JournalPUDesc
-,date_diff(decision_date,submission_dt,day) as TAT
-,Case When full_coll.plainTextTitle is not null then full_coll.plainTextTitle else main_collectionid end as main_collectionTitle,full_coll.hasArticles
-,full_coll.startDate,DATE(full_coll.publicationDateTime) as pub_date_1
-
-
-FROM
-(Select
+Select
 journalId,submissionid,globalsubmissionid,articleTypeId,title,main_versionTag,DATE(main_timestamp) as submission_dt,JournalTitle,main_collectionid
 ,coll_titl_2,decision_date,decision_status
 --, NULL as DOI
 ,country_code,'SNAPP' as data_source
-,authorName--,editor_name
-,null as SN_Title 
+,authorName,editor_name
+,'' as SN_Title 
 
 From 
 (
@@ -179,39 +167,3 @@ WHERE sc.collectionid IS NOT NULL
 order by submissionId
 --limit 1000
 )
-
-union all
-
-Select coll_em.SN_ID as journalId	,coll_em.MS_ID as submissionid,null as globalsubmissionid,coll_em.MS_ARTICLE_TYPE as articleTypeId
-, null as title, null as versionTag, DATE(MS_FIRST_RECEIPT_DATE) as submission_dt, SN_TITLE as JournalTitle
-,CASE 
-  WHEN COLLECTION_ARTICLE_TYPE = 'YES' THEN MS_ARTICLE_TYPE
-  WHEN COLLECTION_SUBMISSION_QUESTION = 'YES' THEN MS_SUB_QUESTION_ANSWER
-  WHEN COLLECTION_SECTION = 'YES' THEN MS_SECTION
-  END as collectionId
-,null as coll_titl_2,DATE(coll_em.MS_FINAL_DISPOSITION_DATE) as decision_date
-,Case when coll_em.MS_FINAL_DISPOSITION_TERM is null then 'No Decision' else coll_em.MS_FINAL_DISPOSITION_TERM end as decision_status
---,coll_em.DOI
-, null as country_code,'EM' as data_source
-,null as authorName--,null as editor_name
-,SN_Title
-
-
-From 
-(Select * From ${ref("COLLECTIONS_EM")} ) as coll_em
-
-) as snapp_em
-
-
-
----------- PART 2 ---------------
-
-left join (Select * From ${ref("tbl_Journals")}) as tbl_j
-On snapp_em.journalId = tbl_j.JournalKey
-  
-left join (SELECT * FROM ${ref("collections")}) as full_coll
-On snapp_em.main_collectionid = full_coll.id 
-
-Where main_collectionid is not null 
-
-order by snapp_em.submissionid,sub_id2)

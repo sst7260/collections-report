@@ -1,0 +1,13 @@
+config {
+  type: "table",
+  database:"springer-nature-analytics",
+  schema:"shreyas_collection_staging",
+  name:"merged_peer_review_systems",
+  description:"data from peer review systems SNAPP & EM merged"
+}
+
+select * from ${ref("snapp_table")}
+
+union all
+
+select * from ${ref("EM_table")}

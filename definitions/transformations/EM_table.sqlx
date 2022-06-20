@@ -1,0 +1,25 @@
+config {
+  type: "table",
+  database:"springer-nature-analytics",
+  schema:"shreyas_collection_staging",
+  name:"EM_table",
+  description:"Data from Collections EM peer review system"
+}
+
+Select coll_em.SN_ID as journalId	,coll_em.MS_ID as submissionid,'' as globalsubmissionid,coll_em.MS_ARTICLE_TYPE as articleTypeId
+, ''  as title, null as versionTag, DATE(MS_FIRST_RECEIPT_DATE) as submission_dt, SN_TITLE as JournalTitle
+,CASE 
+  WHEN COLLECTION_ARTICLE_TYPE = 'YES' THEN MS_ARTICLE_TYPE
+  WHEN COLLECTION_SUBMISSION_QUESTION = 'YES' THEN MS_SUB_QUESTION_ANSWER
+  WHEN COLLECTION_SECTION = 'YES' THEN MS_SECTION
+  END as collectionId
+,'' as coll_titl_2,DATE(coll_em.MS_FINAL_DISPOSITION_DATE) as decision_date
+,Case when coll_em.MS_FINAL_DISPOSITION_TERM is null then 'No Decision' else coll_em.MS_FINAL_DISPOSITION_TERM end as decision_status
+--,coll_em.DOI
+, '' as country_code,'EM' as data_source
+,'' as authorName,'' as editor_name
+,SN_Title
+
+
+From 
+(Select * From ${ref("COLLECTIONS_EM")} ) as coll_em
