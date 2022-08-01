@@ -1,9 +1,9 @@
 config {
   type: "declaration",
-  database:"springer-nature-analytics",
-  schema:"shreyas_collections_EU",
-  name:"collections",
-  description:"getting relevent data from authors"
+  database:"snprojectc3ea67b4",
+  schema:"zz_analytics_centre_of_exellence",
+  name:"COLLECTIONS_EM",
+  description:"metadata for collections"
 
 }
 
