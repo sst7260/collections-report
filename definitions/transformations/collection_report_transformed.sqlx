@@ -7,7 +7,7 @@ config {
 }
 
 -- Journal Metadata
-,tbl_Journals AS (
+With tbl_Journals AS (
   Select * FROM ${ref("tbl_Journals")}
 )
 
@@ -23,14 +23,14 @@ config {
   tblj.JournalPDDesc, 
   tblj.JournalPSDesc, 
   tblj.JournalPUDesc, 
-  from SNAPP_EM_merged as snm
+  from ${ref("merged_peer_review_systems")} as snm
   Left Join tbl_Journals as tblj
   On snm.journalId = tblj.JournalKey
 )
 
 -- Collections metadata
 ,collections_api AS (
-  SELECT * From ${ref(collections)}
+  SELECT * From ${ref('collections')}
 )
 
 -- SNAPP & EM submissions enriched with Journal & Collections metadata
