@@ -6,29 +6,54 @@ config {
   description:"transformed collections data"
 }
 
-Select *,Case When submissionid<>sub_id2 or sub_id2 is null then decision_status else null end as main_decision_status
-
-From
-(Select distinct snapp_em.* 
-,lag(submissionid) over(order by submissionid) as sub_id2
-,tbl_j.JournalReportingKey,tbl_j.JournalStatus,tbl_j.JournalBusinessModel,tbl_j.JournalPDDesc,tbl_j.JournalPSDesc,tbl_j.JournalPUDesc
-,date_diff(decision_date,submission_dt,day) as TAT
-,Case When full_coll.plainTextTitle is not null then full_coll.plainTextTitle else main_collectionid end as main_collectionTitle,full_coll.hasArticles
-,full_coll.startDate,DATE(full_coll.publicationDateTime) as pub_date_1,full_coll.status
+-- Journal Metadata
+,tbl_Journals AS (
+  Select * FROM ${ref("tbl_Journals")}
+)
 
 
-FROM (Select * from ${ref("merged_peer_review_systems")} ) as snapp_em
+-- SNAPP & EM submissions data enriched with Journal metadata
+, submissions_with_journal_data AS (
+  Select snm.*, 
+  tblj.JournalKey,
+  tblj.JournalTitle,
+  tblj.JournalReportingKey, 
+  tblj.JournalStatus, 
+  tblj.JournalBusinessModel, 
+  tblj.JournalPDDesc, 
+  tblj.JournalPSDesc, 
+  tblj.JournalPUDesc, 
+  from SNAPP_EM_merged as snm
+  Left Join tbl_Journals as tblj
+  On snm.journalId = tblj.JournalKey
+)
 
+-- Collections metadata
+,collections_api AS (
+  SELECT * From ${ref(collections)}
+)
 
+-- SNAPP & EM submissions enriched with Journal & Collections metadata
 
----------- PART 2 ---------------
+,final_transf AS (
+  SELECT swjd.*,swjd.decision_status as main_decision_status,
+  col_api.hasArticles, 
+  col_api.startDate, 
+  col_api.endDate, 
+  CASE WHEN col_api.plainTextTitle is NOT NULL THEN col_api.plainTextTitle 
+  WHEN col_api.plainTextTitle is NULL and swjd.collectionTitle_1 is NOT NULL THEN swjd.collectionTitle_1 
+  WHEN col_api.plainTextTitle is NULL and swjd.collectionTitle_1 is NULL THEN swjd.main_collectionId 
+  ELSE col_api.plainTextTitle END AS main_collectionTitle,
+  DATE(col_api.publicationDateTime) AS pub_date_1, 
+  col_api.status,
+  row_number() over(Partition by submissionid order by submissionid) row_num_sub_id,
+  count(*) over (Partition by submissionid) cnt2
 
-left join (Select * From ${ref("tbl_Journals")}) as tbl_j
-On snapp_em.journalId = tbl_j.JournalKey
-  
-left join (SELECT * FROM ${ref("collections")}) as full_coll
-On snapp_em.main_collectionid = full_coll.id 
+  From submissions_with_journal_data swjd
+  Left Join collections_api col_api
+  On swjd.main_collectionid = col_api.id
+) 
 
-Where main_collectionid is not null 
-
-order by snapp_em.submissionid,sub_id2)
+Select *   
+from final_transf
+where row_num_sub_id=1 

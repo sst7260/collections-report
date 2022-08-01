@@ -8,6 +8,6 @@ config {
 
 select * from ${ref("snapp_table")}
 
-union all
+union distinct
 
 select * from ${ref("EM_table")}

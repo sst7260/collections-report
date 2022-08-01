@@ -6,20 +6,43 @@ config {
   description:"Data from Collections EM peer review system"
 }
 
-Select coll_em.SN_ID as journalId	,coll_em.MS_ID as submissionid,'' as globalsubmissionid,coll_em.MS_ARTICLE_TYPE as articleTypeId
-, ''  as title, null as versionTag, DATE(MS_FIRST_RECEIPT_DATE) as submission_dt, SN_TITLE as JournalTitle
-,CASE 
-  WHEN COLLECTION_ARTICLE_TYPE = 'YES' THEN MS_ARTICLE_TYPE
-  WHEN COLLECTION_SUBMISSION_QUESTION = 'YES' THEN MS_SUB_QUESTION_ANSWER
-  WHEN COLLECTION_SECTION = 'YES' THEN MS_SECTION
-  END as collectionId
-,'' as coll_titl_2,DATE(coll_em.MS_FINAL_DISPOSITION_DATE) as decision_date
-,Case when coll_em.MS_FINAL_DISPOSITION_TERM is null then 'No Decision' else coll_em.MS_FINAL_DISPOSITION_TERM end as decision_status
---,coll_em.DOI
-, '' as country_code,'EM' as data_source
-,'' as authorName,'' as editor_name
-,SN_Title
+With Collections_EM AS (
+  	SELECT 
+   		  SN_ID AS journalId, 
+    		MS_ID AS submissionid, 
+    		'' as ms_title,
+    		MS_ARTICLE_TYPE AS articleTypeId, 
+    		NULL AS versionTag, 
+    		DATE(MS_FIRST_RECEIPT_DATE) AS first_submission_dt, 
+    		--SN_TITLE AS JournalTitle, 
+    		CASE 
+        WHEN COLLECTION_ARTICLE_TYPE = 'YES' THEN MS_ARTICLE_TYPE 
+        WHEN COLLECTION_SUBMISSION_QUESTION = 'YES' THEN MS_SUB_QUESTION_ANSWER 
+        WHEN COLLECTION_SECTION = 'YES' THEN MS_SECTION 
+        END AS main_collectionId, 
+        CASE 
+        WHEN COLLECTION_ARTICLE_TYPE = 'YES' THEN MS_ARTICLE_TYPE 
+        WHEN COLLECTION_SUBMISSION_QUESTION = 'YES' THEN MS_SUB_QUESTION_ANSWER 
+        WHEN COLLECTION_SECTION = 'YES' THEN MS_SECTION 
+        END AS collectionTitle_1, 
+        DATE(MS_FINAL_DISPOSITION_DATE) AS decision_date, 
+        CASE 
+        WHEN MS_FINAL_DISPOSITION_TERM is NULL THEN 'No Decision' 
+        ELSE MS_FINAL_DISPOSITION_TERM 
+        END AS decision_status, 
+        '' AS editor_name,
+        CAST(null as DATE) last_editor_assigned_date,
+        '' AS authorName,
+        '' AS auth_country_code, 
+        '' as ms_stage,
+        'EM' AS data_source, 
+         
+         
+        -- DATE(MS_FIRST_RECEIPT_DATE) AS last_submission_dt, 
+    
+    FROM  ${ref("COLLECTIONS_EM")}
+)
 
 
-From 
-(Select * From ${ref("COLLECTIONS_EM")} ) as coll_em
+SELECT *
+FROM Collections_EM
