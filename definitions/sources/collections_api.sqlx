@@ -1,8 +1,8 @@
 config {
   type: "declaration",
-  database:"snprojectc3ea67b4",
-  schema:"zz_analytics_centre_of_exellence",
-  name:"COLLECTIONS_EM",
+  database:"springer-nature-analytics",
+  schema:"core_datasets_eu",
+  name:"collections",
   description:"metadata for collections"
 
 }
