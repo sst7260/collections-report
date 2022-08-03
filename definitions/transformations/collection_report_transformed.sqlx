@@ -57,3 +57,5 @@ With tbl_Journals AS (
 Select *   
 from final_transf
 where row_num_sub_id=1 
+
+
