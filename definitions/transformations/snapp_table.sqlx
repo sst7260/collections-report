@@ -1,7 +1,7 @@
 config {
   type: "table",
   database:"springer-nature-analytics",
-  schema:"shreyas_collection_staging",
+  schema:"Collections_KPI_master",
   name:"snapp_table",
   description:"Data from SNAPP peer review system"
 }
