@@ -1,7 +1,7 @@
 config {
   type: "table",
   database:"springer-nature-analytics",
-  schema:"Collections_KPI_master",
+  schema:"Collections_KPI_dev",
   name:"collection_report_transformed",
   description:"transformed collections data"
 }
@@ -52,6 +52,7 @@ With tbl_Journals AS (
   From submissions_with_journal_data swjd
   Left Join collections_api col_api
   On swjd.main_collectionid = col_api.id
+  where main_collectionid=id or data_source='EM'
 ) 
 
 Select *   
