@@ -1,7 +1,7 @@
 config {
   type: "table",
   database:"springer-nature-analytics",
-  schema:"Collections_KPI_dev",
+  schema:"Collections_KPI_master",
   name:"merged_peer_review_systems",
   description:"data from peer review systems SNAPP & EM merged"
 }
