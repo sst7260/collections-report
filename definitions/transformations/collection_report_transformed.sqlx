@@ -35,7 +35,7 @@ With tbl_Journals AS (
 
 -- SNAPP & EM submissions enriched with Journal & Collections metadata
 
-,final_transf AS (
+,submissions_with_collections_api_data AS (
   SELECT swjd.*,swjd.decision_status as main_decision_status,
   col_api.hasArticles, 
   col_api.startDate, 
@@ -54,6 +54,19 @@ With tbl_Journals AS (
   On swjd.main_collectionid = col_api.id
   where main_collectionid=id or data_source='EM'
 ) 
+
+
+,Launch_date_first_collection AS (
+  SELECT *
+  FROM `springer-nature-analytics.shreyas_collections_EU.Launch_date_first_collection`
+)
+
+,final_transf As (
+  SELECT swcd.*,ldfc.* except(Journal_title_number,Journal_Title)
+  FROM submissions_with_collections_api_data swcd
+  LEFT JOIN Launch_date_first_collection ldfc
+  ON swcd.JournalKey=ldfc.Journal_title_number
+)
 
 Select *   
 from final_transf
