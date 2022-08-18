@@ -1,0 +1,193 @@
+config {
+  type: "table",
+  database:"springer-nature-analytics",
+  schema:"Collections_KPI_master",
+  name:"event_series_snapp_table",
+  description:"Data from SNAPP peer review system"
+}
+
+
+WITH SNAPP_collection_events AS (
+    SELECT 
+      journalID,
+      submissionid,
+      collectionId as stage_collectionid,
+      versionTag,
+      revisionVersion,
+      amendmentVersion,
+      'Initial' as stage,
+      CASE 
+        WHEN collectionId IS NOT NULL THEN 'True'
+        ELSE 'False'
+        END as MS_version_in_collection,
+      CASE 
+        WHEN collectionId IS NOT NULL THEN collectionid
+        ELSE NULL
+        END as MS_collectionid,
+      timestamp
+    FROM ${ref("submission_received")}
+ 
+  UNION DISTINCT
+    SELECT 
+      journalID,
+      submissionid,
+      collectionId as stage_collectionid,
+      versionTag,
+      revisionVersion,
+      amendmentVersion,
+      'Revision' as stage,
+      CASE 
+        WHEN collectionId IS NOT NULL THEN 'True'
+        ELSE 'False'
+        END as MS_version_in_collection,
+      CASE 
+        WHEN collectionId IS NOT NULL THEN collectionid
+        ELSE NULL
+        END as MS_collectionid,
+      timestamp
+    FROM ${ref("submission_revision_received")} 
+ 
+  UNION DISTINCT
+    SELECT
+      journalID,
+      submissionid,
+      collectionId as stage_collectionid,
+      versionTag,
+      revisionVersion,
+      amendmentVersion,
+      'Amendment' as stage,
+      CASE 
+        WHEN collectionId IS NOT NULL THEN 'True'
+        ELSE 'False'
+        END as MS_version_in_collection,
+      CASE 
+        WHEN collectionId IS NOT NULL THEN collectionid
+        ELSE NULL
+        END as MS_collectionid,
+      timestamp
+    FROM ${ref("submission_change_received")}
+ 
+  UNION DISTINCT
+    SELECT
+      journalID,
+      submissionid,
+      collectionId as stage_collectionid,
+      versionTag,
+      revisionVersion,
+      amendmentVersion,
+      'Collection assigned' as stage,
+      'True' as MS_version_in_collection,
+      collectionId as MS_collectionid,
+      timestamp
+    FROM ${ref("collection_assigned")}
+ 
+  UNION DISTINCT
+    SELECT
+      journalID,
+      submissionid,
+      collectionId as stage_collectionid,
+      versionTag,
+      revisionVersion,
+      amendmentVersion,
+      'Collection unassigned' as stage,
+      'False'as MS_version_in_collection,
+      NULL as MS_collectionid,
+      timestamp
+    FROM ${ref("collection_unassigned")} )
+,
+SNAPP_collection_events_with_initial_sub AS (
+    SELECT 
+      sce.*,
+      ROW_NUMBER() OVER(PARTITION BY sce.submissionId ORDER BY sce.timestamp DESC) row_no,
+      DATE(isv.timestamp) as initial_submission_date,
+      isv.title as MS_title,
+      isv.articleTypeId
+    FROM SNAPP_collection_events as sce
+    LEFT JOIN ${ref("submission_received")} as isv on sce.submissionid = isv.submissionid
+),
+LAST_EDITOR_ASSIGNED AS (
+    SELECT DISTINCT 
+      journalId, 
+      submissionID, 
+      editor_givenName, 
+      editor_familyName, 
+      MAX(timestamp) OVER (PARTITION BY submissionID) AS last_editor_assigned_timestamp 
+      FROM  ${ref("editor_assigned")}
+), 
+MS_ACCEPTED AS (
+    SELECT DISTINCT 
+      journalId, 
+      submissionID, 
+      MIN(timestamp) OVER (PARTITION BY submissionID) AS accepted_timestamp 
+   FROM  ${ref("accepted_for_publication")} 
+), 
+MS_REJECTED AS (
+    SELECT  DISTINCT 
+      journalId, 
+      submissionID, 
+      MIN(timestamp) OVER (PARTITION BY submissionID) AS rejected_timestamp 
+FROM  ${ref("rejected_for_publication")}
+), 
+MS_WITHDRAWN AS (
+    SELECT DISTINCT 
+      journalId, 
+      submissionID, 
+      MIN(timestamp) OVER (PARTITION BY submissionID) AS withdrawn_timestamp 
+    FROM  ${ref("withdrawn_for_publication")} 
+), 
+Author_data AS (
+    SELECT DISTINCT
+      sc.submissionId,  
+      CONCAT(a.givenName, " ", a.familyName) AS authorName, 
+      a.affiliation.institutionName AS institute, 
+      a.affiliation.countryCode AS country_code, 
+      a.corresponding 
+    FROM  ${ref("submission_received")} AS sc 
+    LEFT JOIN UNNEST(authors) AS a 
+     WHERE a.corresponding = True
+),
+
+
+--SNAPP combined data 
+SNAPP_combined AS (
+    SELECT
+      sc.journalID as journalId,
+      sc.submissionid,      
+      sc.MS_title as ms_title, 
+      sc.articleTypeID as articleTypeId,
+      sc.VersionTag as versionTag,
+      sc.initial_submission_date as first_submission_dt,
+      Sc.MS_collectionid AS main_collectionid,
+      --CASE  WHEN sc.collectionid is NOT NULL THEN sc.collectionid END AS main_collectionid,
+      '' AS collectionTitle_1,
+      CASE  WHEN afp.accepted_timestamp is NOT NULL THEN DATE(afp.accepted_timestamp) 
+            WHEN rfp.rejected_timestamp is NOT NULL THEN DATE(rfp.rejected_timestamp) 
+            WHEN wfp.withdrawn_timestamp is NOT NULL THEN DATE(wfp.withdrawn_timestamp) 
+            ELSE NULL 
+            END AS decision_date, 
+      CASE  WHEN afp.accepted_timestamp IS NOT NULL THEN 'Accept' 
+            WHEN rfp.rejected_timestamp IS NOT NULL THEN 'Reject' 
+            WHEN wfp.withdrawn_timestamp IS NOT NULL THEN 'Withdrawn' 
+            ELSE 'No Decision' 
+            END AS decision_status, 
+      CONCAT(lea.editor_givenName, ' ', lea.editor_familyName) AS editor_name, 
+      DATE(lea.last_editor_assigned_timestamp) as last_editor_assigned_date,
+      ad.authorName,
+      ad.country_code, 
+      sc.stage as ms_stage,
+      'SNAPP' AS data_source,
+      sc.row_no
+    FROM  SNAPP_collection_events_with_initial_sub AS sc 
+    LEFT JOIN LAST_EDITOR_ASSIGNED AS lea ON sc.submissionId = lea.submissionID 
+    LEFT JOIN MS_ACCEPTED afp ON sc.submissionId = afp.submissionID 
+    LEFT JOIN MS_REJECTED AS rfp ON sc.submissionId = rfp.submissionID 
+    LEFT JOIN MS_WITHDRAWN AS wfp ON sc.submissionId = wfp.submissionID 
+    --LEFT JOIN Journal_meta AS jm ON sc.journalID = jm.journalID 
+    LEFT JOIN Author_data AS ad ON sc.submissionId = ad.submissionId 
+    
+      AND MS_version_in_collection = 'True'
+)
+
+SELECT * 
+FROM SNAPP_combined
+ORDER BY submissionid,row_no desc
