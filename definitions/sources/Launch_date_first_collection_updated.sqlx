@@ -2,6 +2,6 @@ config {
   type: "declaration",
   database:"springer-nature-analytics",
   schema:"shreyas_collections_EU",
-  name:"Launch_date_first_collection",
+  name:"Launch_date_first_collection_updated",
   description:"Launch date of first collection for journals"
 }

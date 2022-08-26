@@ -56,15 +56,15 @@ With tbl_Journals AS (
 ) 
 
 
-,Launch_date_first_collection AS (
+,Launch_date_first_collection_updated  AS (
   SELECT *
-  FROM ${ref("Launch_date_first_collection")}
+  FROM ${ref("Launch_date_first_collection_updated")}
 )
 
 ,final_transf As (
   SELECT swcd.*,ldfc.Launch_date_of_the_first_collection_launched_by_CA_team as launch_dt_first_collection
   FROM submissions_with_collections_api_data swcd
-  LEFT JOIN Launch_date_first_collection ldfc
+  LEFT JOIN Launch_date_first_collection_updated ldfc
   ON swcd.JournalKey=ldfc.Journal_title_number
 )
 
