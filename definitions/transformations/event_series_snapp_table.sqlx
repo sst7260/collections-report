@@ -158,6 +158,7 @@ SNAPP_combined AS (
       sc.VersionTag as versionTag,
       sc.initial_submission_date as first_submission_dt,
       Sc.MS_collectionid AS main_collectionid,
+      DATE(sc.timestamp) as ms_stage_date,
       --CASE  WHEN sc.collectionid is NOT NULL THEN sc.collectionid END AS main_collectionid,
       '' AS collectionTitle_1,
       CASE  WHEN afp.accepted_timestamp is NOT NULL THEN DATE(afp.accepted_timestamp) 
@@ -185,9 +186,9 @@ SNAPP_combined AS (
     --LEFT JOIN Journal_meta AS jm ON sc.journalID = jm.journalID 
     LEFT JOIN Author_data AS ad ON sc.submissionId = ad.submissionId 
     
-      AND MS_version_in_collection = 'True'
+--WHERE MS_version_in_collection = 'True'
 )
 
-SELECT * 
+SELECT * except (editor_name,last_editor_assigned_date)
 FROM SNAPP_combined
 ORDER BY submissionid,row_no desc
