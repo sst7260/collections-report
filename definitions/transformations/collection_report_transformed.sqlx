@@ -69,7 +69,11 @@ With tbl_Journals AS (
 )
 
 Select *,
-CASE WHEN launch_dt_first_collection is not null then True else False end as Managed_by_CA_team
+CASE
+WHEN startDate>= launch_dt_first_collection and first_submission_dt>= launch_dt_first_collection THEN 'CA launched collection and CA sub'
+WHEN startDate< launch_dt_first_collection and first_submission_dt>= launch_dt_first_collection THEN 'CA managed collection and CA sub'
+ELSE 'Not managed by CA'
+END as CA_team_management_status
 from final_transf
 where row_num_editor=1 
 
