@@ -15,5 +15,15 @@
       "name": "new_environment",
       "gitRef": "master"
     }
+  ],
+  "notificationChannels": [
+    {
+      "name": "new_notification_channel",
+      "email": {
+        "to": [
+          "shreyas.shetty@springernature.com"
+        ]
+      }
+    }
   ]
 }
