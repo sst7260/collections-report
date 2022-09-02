@@ -159,6 +159,7 @@ SNAPP_combined AS (
       sc.initial_submission_date as first_submission_dt,
       Sc.MS_collectionid AS main_collectionid,
       DATE(sc.timestamp) as ms_stage_date,
+      sc.MS_version_in_collection,
       --CASE  WHEN sc.collectionid is NOT NULL THEN sc.collectionid END AS main_collectionid,
       '' AS collectionTitle_1,
       CASE  WHEN afp.accepted_timestamp is NOT NULL THEN DATE(afp.accepted_timestamp) 
