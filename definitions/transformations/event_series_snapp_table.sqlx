@@ -171,15 +171,15 @@ SNAPP_combined AS (
             WHEN wfp.withdrawn_timestamp IS NOT NULL THEN 'Withdrawn' 
             ELSE 'No Decision' 
             END AS decision_status, 
-      CONCAT(lea.editor_givenName, ' ', lea.editor_familyName) AS editor_name, 
-      DATE(lea.last_editor_assigned_timestamp) as last_editor_assigned_date,
+--CONCAT(lea.editor_givenName, ' ', lea.editor_familyName) AS editor_nam--
+--DATE(lea.last_editor_assigned_timestamp) as last_editor_assigned_date,
       ad.authorName,
       ad.country_code, 
       sc.stage as ms_stage,
       'SNAPP' AS data_source,
       sc.row_no
     FROM  SNAPP_collection_events_with_initial_sub AS sc 
-    LEFT JOIN LAST_EDITOR_ASSIGNED AS lea ON sc.submissionId = lea.submissionID 
+ --   LEFT JOIN LAST_EDITOR_ASSIGNED AS lea ON sc.submissionId = lea.submissionID 
     LEFT JOIN MS_ACCEPTED afp ON sc.submissionId = afp.submissionID 
     LEFT JOIN MS_REJECTED AS rfp ON sc.submissionId = rfp.submissionID 
     LEFT JOIN MS_WITHDRAWN AS wfp ON sc.submissionId = wfp.submissionID 
@@ -189,6 +189,6 @@ SNAPP_combined AS (
 --WHERE MS_version_in_collection = 'True'
 )
 
-SELECT * except (editor_name,last_editor_assigned_date)
+SELECT * 
 FROM SNAPP_combined
 ORDER BY submissionid,row_no desc
