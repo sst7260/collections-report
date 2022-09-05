@@ -7,6 +7,9 @@ config {
 }
 
 With Collections_EM AS (
+  SELECT *
+  FROM
+  (
   	SELECT 
    		  SN_ID AS journalId, 
     		MS_ID AS submissionid, 
@@ -41,6 +44,8 @@ With Collections_EM AS (
         -- DATE(MS_FIRST_RECEIPT_DATE) AS last_submission_dt, 
     
     FROM  ${ref("COLLECTIONS_EM")}
+  )
+  WHERE collectionTitle_1 is not null
 )
 
 
