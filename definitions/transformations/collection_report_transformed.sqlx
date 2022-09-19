@@ -52,7 +52,8 @@ With tbl_Journals AS (
   From submissions_with_journal_data swjd
   Left Join collections_api col_api
   On swjd.main_collectionid = col_api.id
-  where main_collectionid=id or data_source='EM'
+  or swjd.collectionTitle_1 = col_api.plainTextTitle
+  --where main_collectionid=id or data_source='EM'
 ) 
 
 
