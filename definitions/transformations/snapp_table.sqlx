@@ -170,8 +170,8 @@ SNAPP_combined AS (
             WHEN wfp.withdrawn_timestamp IS NOT NULL THEN 'Withdrawn' 
             ELSE 'No Decision' 
             END AS decision_status, 
-      CONCAT(lea.editor_givenName, ' ', lea.editor_familyName) AS editor_name, 
-      DATE(lea.last_editor_assigned_timestamp) as last_editor_assigned_date,
+      -- CONCAT(lea.editor_givenName, ' ', lea.editor_familyName) AS editor_name, 
+      -- DATE(lea.last_editor_assigned_timestamp) as last_editor_assigned_date,
       ad.authorName,
       ad.country_code, 
       sc.stage as ms_stage,

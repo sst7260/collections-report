@@ -1,3 +1,8 @@
+
+
+----------------------------------------------
+
+
 config {
   type: "table",
   database:"springer-nature-analytics",
@@ -40,13 +45,14 @@ With tbl_Journals AS (
   col_api.hasArticles, 
   col_api.startDate, 
   col_api.endDate, 
-  CASE WHEN col_api.plainTextTitle is NOT NULL THEN col_api.plainTextTitle 
-  WHEN col_api.plainTextTitle is NULL and swjd.collectionTitle_1 is NOT NULL THEN swjd.collectionTitle_1 
-  WHEN col_api.plainTextTitle is NULL and swjd.collectionTitle_1 is NULL THEN swjd.main_collectionId 
-  ELSE col_api.plainTextTitle END AS main_collectionTitle,
+  COALESCE(col_api.plainTextTitle,swjd.collectionTitle_1,swjd.main_collectionId) AS main_collectionTitle,
+  -- CASE WHEN col_api.plainTextTitle is NOT NULL THEN col_api.plainTextTitle 
+  -- WHEN col_api.plainTextTitle is NULL and swjd.collectionTitle_1 is NOT NULL THEN swjd.collectionTitle_1 
+  -- WHEN col_api.plainTextTitle is NULL and swjd.collectionTitle_1 is NULL THEN swjd.main_collectionId 
+  -- ELSE col_api.plainTextTitle END AS main_collectionTitle,
   DATE(col_api.publicationDateTime) AS pub_date_1, 
   col_api.status,
-  row_number() over(Partition by submissionid order by submissionid) row_num_editor,
+  row_number() over(Partition by submissionid,main_collectionid order by submissionid) row_num_editor,
   count(*) over (Partition by submissionid) cnt2
 
   From submissions_with_journal_data swjd
@@ -76,6 +82,7 @@ WHEN startDate< launch_dt_first_collection and first_submission_dt>= launch_dt_f
 ELSE 'Not managed by CA'
 END as CA_team_management_status
 from final_transf
-where row_num_editor=1 
+--where row_num_editor=1 
+
 
 
