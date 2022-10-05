@@ -7,15 +7,51 @@ config {
   description:"transformed collections data"
 }
 
+
+
+-- Collections metadata
+with collections_api AS (
+  SELECT * From ${ref('collections')} left join unnest(journalIds) jrnl_id left join unnest(journals) jrnl_title
+)
+
+-- SNAPP & EM submissions enriched with Journal & Collections metadata
+
+,submissions_with_collections_api_data AS (
+  SELECT snm.*,snm.decision_status as main_decision_status,
+  col_api.hasArticles, 
+  COALESCE(col_api2.startDate,col_api.startDate) as CT_startDate, 
+  COALESCE(col_api2.endDate,col_api.endDate) as CT_endDate, 
+  COALESCE(main_collectionid,col_api2.id,col_api.id) as CT_collectionid,
+  COALESCE(col_api2.plainTextTitle,col_api.plainTextTitle,snm.collectionTitle_1,snm.main_collectionId) AS main_collectionTitle,
+  -- CASE WHEN col_api.plainTextTitle is NOT NULL THEN col_api.plainTextTitle 
+  -- WHEN col_api.plainTextTitle is NULL and swjd.collectionTitle_1 is NOT NULL THEN swjd.collectionTitle_1 
+  -- WHEN col_api.plainTextTitle is NULL and swjd.collectionTitle_1 is NULL THEN swjd.main_collectionId 
+  -- ELSE col_api.plainTextTitle END AS main_collectionTitle,
+  DATE(col_api.publicationDateTime) AS pub_date_1, 
+  col_api.status,
+  COALESCE(col_api2.jrnl_id,col_api.jrnl_id,snm.journalId) as alt_jrnl_key,
+  COALESCE(col_api2.jrnl_title,col_api.jrnl_title) as alt_jrnl_title
+
+  From ${ref("merged_peer_review_systems")} as snm
+  Full Outer Join collections_api col_api
+  On snm.main_collectionid = col_api.id
+  left join collections_api col_api2
+  On snm.main_collectionid = col_api2.id
+  or snm.collectionTitle_1 = col_api2.plainTextTitle 
+  --where main_collectionid=id or data_source='EM'
+) 
+
+
+
 -- Journal Metadata
-With tbl_Journals AS (
+, tbl_Journals AS (
   Select * FROM ${ref("tbl_Journals")}
 )
 
 
 -- SNAPP & EM submissions data enriched with Journal metadata
 , submissions_with_journal_data AS (
-  Select snm.*, 
+  Select swcd.*, 
   tblj.JournalKey,
   tblj.JournalTitle,
   tblj.JournalReportingKey, 
@@ -24,41 +60,12 @@ With tbl_Journals AS (
   tblj.JournalPDDesc, 
   tblj.JournalPSDesc, 
   tblj.JournalPUDesc, 
-  from ${ref("merged_peer_review_systems")} as snm
+  from submissions_with_collections_api_data as swcd
   Left Join tbl_Journals as tblj
-  On snm.journalId = tblj.JournalKey
+  On swcd.alt_jrnl_key = tblj.JournalKey
+  or swcd.alt_jrnl_title = tblj.JournalTitle
 )
 
--- Collections metadata
-,collections_api AS (
-  SELECT * From ${ref('collections')}
-)
-
--- SNAPP & EM submissions enriched with Journal & Collections metadata
-
-,submissions_with_collections_api_data AS (
-  SELECT swjd.*,swjd.decision_status as main_decision_status,
-  col_api.hasArticles, 
-  COALESCE(col_api2.startDate,col_api.startDate) as CT_startDate, 
-  COALESCE(col_api2.endDate,col_api.endDate) as CT_endDate, 
-  COALESCE(main_collectionid,col_api2.id,col_api.id) as CT_collectionid,
-  COALESCE(col_api2.plainTextTitle,col_api.plainTextTitle,swjd.collectionTitle_1,swjd.main_collectionId) AS main_collectionTitle,
-  -- CASE WHEN col_api.plainTextTitle is NOT NULL THEN col_api.plainTextTitle 
-  -- WHEN col_api.plainTextTitle is NULL and swjd.collectionTitle_1 is NOT NULL THEN swjd.collectionTitle_1 
-  -- WHEN col_api.plainTextTitle is NULL and swjd.collectionTitle_1 is NULL THEN swjd.main_collectionId 
-  -- ELSE col_api.plainTextTitle END AS main_collectionTitle,
-  DATE(col_api.publicationDateTime) AS pub_date_1, 
-  col_api.status,
-  
-
-  From submissions_with_journal_data swjd
-  Full Outer Join collections_api col_api
-  On swjd.main_collectionid = col_api.id
-  left join collections_api col_api2
-  On swjd.main_collectionid = col_api2.id
-  or swjd.collectionTitle_1 = col_api2.plainTextTitle 
-  --where main_collectionid=id or data_source='EM'
-) 
 
 
 ,Launch_date_first_collection_updated  AS (
@@ -67,12 +74,12 @@ With tbl_Journals AS (
 )
 
 ,final_transf As (
-  SELECT swcd.*,ldfc.Launch_date_of_the_first_collection_launched_by_CA_team as launch_dt_first_collection,
+  SELECT swjd.*,ldfc.Launch_date_of_the_first_collection_launched_by_CA_team as launch_dt_first_collection,
 row_number() over(Partition by submissionid,CT_collectionid order by submissionid) row_num_coll_id,
   count(*) over (Partition by submissionid) cnt2
-  FROM submissions_with_collections_api_data swcd
+  FROM submissions_with_journal_data swjd
   LEFT JOIN Launch_date_first_collection_updated ldfc
-  ON swcd.JournalKey=ldfc.Journal_title_number
+  ON swjd.JournalKey=ldfc.Journal_title_number
 )
 
 Select *,
