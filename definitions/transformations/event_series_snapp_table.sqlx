@@ -188,6 +188,7 @@ SNAPP_combined AS (
     LEFT JOIN Author_data AS ad ON sc.submissionId = ad.submissionId 
     
 --WHERE MS_version_in_collection = 'True'
+WHERE sc.row_no=1
 )
 
 SELECT * 
