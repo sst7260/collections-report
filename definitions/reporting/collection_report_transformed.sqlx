@@ -11,7 +11,8 @@ config {
 
 -- Collections metadata
 with collections_api AS (
-  SELECT * From ${ref('collections')} left join unnest(journalIds) jrnl_id left join unnest(journals) jrnl_title
+  SELECT * 
+  From ${ref('collections')} left join unnest(journalIds) jrnl_id left join unnest(journals) jrnl_title
 )
 
 -- SNAPP & EM submissions enriched with Journal & Collections metadata
@@ -60,12 +61,17 @@ with collections_api AS (
   tblj.JournalPDDesc, 
   tblj.JournalPSDesc, 
   tblj.JournalPUDesc, 
-  from submissions_with_collections_api_data as swcd
-  Left Join tbl_Journals as tblj
-  On swcd.alt_jrnl_key = tblj.JournalKey
-  or swcd.alt_jrnl_title = tblj.JournalTitle
-)
 
+  tblj2.JournalKey as all_journal_key,
+  tblj2.JournalTitle as all_journal_title
+
+  From submissions_with_collections_api_data as swcd
+  Left Join tbl_Journals as tblj
+  On swcd.journalId = tblj.JournalKey
+  Left Join tbl_Journals as tblj2
+  On swcd.alt_jrnl_key = tblj2.JournalKey
+  or swcd.alt_jrnl_title = tblj2.JournalTitle
+)
 
 
 ,Launch_date_first_collection_updated  AS (
@@ -73,8 +79,11 @@ with collections_api AS (
   FROM ${ref("Launch_date_first_collection_updated")}
 )
 
+
+
 ,final_transf As (
-  SELECT swjd.*,ldfc.Launch_date_of_the_first_collection_launched_by_CA_team as launch_dt_first_collection,
+  SELECT swjd.* 
+  ,ldfc.Launch_date_of_the_first_collection_launched_by_CA_team as launch_dt_first_collection,
 row_number() over(Partition by submissionid,CT_collectionid order by submissionid) row_num_coll_id,
   count(*) over (Partition by submissionid) cnt2
   FROM submissions_with_journal_data swjd
