@@ -1,0 +1,14 @@
+config {
+  type: "table",
+  database:"springer-nature-analytics",
+  schema:"Collections_KPI_master",
+  name:"manuscript_to_publication",  
+}
+
+SELECT
+  DISTINCT internal_submission_id,
+  doi as ms_doi
+FROM
+  ${ref("rpt_collections")}
+WHERE
+  doi IS NOT null

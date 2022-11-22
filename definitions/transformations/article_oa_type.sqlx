@@ -1,0 +1,12 @@
+config {
+  type: "table",
+  database:"springer-nature-analytics",
+  schema:"Collections_KPI_dev",
+  name:"article_oa_type",
+  description:""
+}
+
+
+SELECT DOI as dds_doi,COALESCE(lc.Type,'Non OpenAccess') as dds_subscription_model
+FROM ${ref("v_artchp")}
+left join unnest(Licenses) lc

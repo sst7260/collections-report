@@ -6,7 +6,8 @@
       "schedules": [
         {
           "name": "collections_schedule",
-          "cron": "48 6 * * mon,tue,wed,thu,fri,sat,sun"
+          "cron": "48 6 * * *",
+          "disabled": true
         }
       ],
       "gitRef": "master"

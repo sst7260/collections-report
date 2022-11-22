@@ -2,7 +2,7 @@
 config {
   type: "table",
   database:"springer-nature-analytics",
-  schema:"Collections_KPI_master",
+  schema:"Collections_KPI_dev",
   name:"collection_report_transformed",
   description:"transformed collections data"
 }
@@ -86,103 +86,47 @@ with collections_api AS (
   ,ldfc.Launch_date_of_the_first_collection_launched_by_CA_team as launch_dt_first_collection,
 row_number() over(Partition by submissionid,CT_collectionid order by submissionid) row_num_coll_id,
   count(*) over (Partition by submissionid) cnt2
+  ,mtp.ms_doi
   FROM submissions_with_journal_data swjd
+  LEFT JOIN ${ref("manuscript_to_publication")} mtp
+  ON swjd.submissionid = mtp.internal_submission_id
   LEFT JOIN Launch_date_first_collection_updated ldfc
   ON swjd.JournalKey=ldfc.Journal_title_number
 )
 
-Select *,
+
+, usage_with_final_transf as (
+  SELECT ft.*
+  ,rcp.*
+  ,COALESCE(ft.ms_doi,rcp.DOI) as main_doi
+  ,COALESCE(ft.main_collectionid,rcp.collection_id,ft.CT_collectionid,ft.main_collectionTitle,rcp.Published_ArticleCollectionTitle) filter_coll_id
+  ,COALESCE(ft.main_collectionTitle,rcp.Published_ArticleCollectionTitle) filter_coll_title
+  ,COALESCE(ft.JournalTitle,rcp.journal_title) filter_journal_title
+  From final_transf ft
+  Full outer join ${ref("reporting_coll_publications")} rcp
+  On ft.ms_doi = rcp.DOI
+)
+
+Select usft.*,
 CASE
 WHEN CT_startDate>= launch_dt_first_collection and first_submission_dt>= launch_dt_first_collection THEN 'CA launched collection and CA sub'
 WHEN CT_startDate< launch_dt_first_collection and first_submission_dt>= launch_dt_first_collection THEN 'CA managed collection and CA sub'
 ELSE 'Not managed by CA'
 END as CA_team_management_status
-from final_transf
+
+,CASE When ms_doi is not null then 'submission driven'
+When ms_doi is null and DOI is not null then 'post publication collection' end as publication_type
+
+,COALESCE(aoat.dds_subscription_model,'Unknown') as subscription_model
+
+,CASE When count(distinct filter_journal_title) over(Partition by filter_coll_title)>1 Then 'multi-journal' else 'non multi-journal' end as multi_journal_collection
+
+,CASE When count(distinct main_doi ) over(Partition by filter_coll_title,author_name)>1 Then 'repeated' else 'not repeated' end as authorship_in_collections 
+
+from usage_with_final_transf usft
+Left JOIN ${ref("article_oa_type")} aoat
+On usft.main_doi = aoat.dds_doi
 --where row_num_coll_id=1 
-
-----------------------------------------------
-
-
--- config {
---   type: "table",
---   database:"springer-nature-analytics",
---   schema:"Collections_KPI_master",
---   name:"collection_report_transformed",
---   description:"transformed collections data"
--- }
-
--- -- Journal Metadata
--- With tbl_Journals AS (
---   Select * FROM ${ref("tbl_Journals")}
--- )
-
-
--- -- SNAPP & EM submissions data enriched with Journal metadata
--- , submissions_with_journal_data AS (
---   Select snm.*, 
---   tblj.JournalKey,
---   tblj.JournalTitle,
---   tblj.JournalReportingKey, 
---   tblj.JournalStatus, 
---   tblj.JournalBusinessModel, 
---   tblj.JournalPDDesc, 
---   tblj.JournalPSDesc, 
---   tblj.JournalPUDesc, 
---   from ${ref("merged_peer_review_systems")} as snm
---   Left Join tbl_Journals as tblj
---   On snm.journalId = tblj.JournalKey
--- )
-
--- -- Collections metadata
--- ,collections_api AS (
---   SELECT * From ${ref('collections')}
--- )
-
--- -- SNAPP & EM submissions enriched with Journal & Collections metadata
-
--- ,submissions_with_collections_api_data AS (
---   SELECT swjd.*,swjd.decision_status as main_decision_status,
---   col_api.hasArticles, 
---   col_api.startDate, 
---   col_api.endDate, 
---   COALESCE(col_api.plainTextTitle,swjd.collectionTitle_1,swjd.main_collectionId) AS main_collectionTitle,
---   -- CASE WHEN col_api.plainTextTitle is NOT NULL THEN col_api.plainTextTitle 
---   -- WHEN col_api.plainTextTitle is NULL and swjd.collectionTitle_1 is NOT NULL THEN swjd.collectionTitle_1 
---   -- WHEN col_api.plainTextTitle is NULL and swjd.collectionTitle_1 is NULL THEN swjd.main_collectionId 
---   -- ELSE col_api.plainTextTitle END AS main_collectionTitle,
---   DATE(col_api.publicationDateTime) AS pub_date_1, 
---   col_api.status,
---   row_number() over(Partition by submissionid,main_collectionid order by submissionid) row_num_editor,
---   count(*) over (Partition by submissionid) cnt2
-
---   From submissions_with_journal_data swjd
---   Left Join collections_api col_api
---   On swjd.main_collectionid = col_api.id
---   or swjd.collectionTitle_1 = col_api.plainTextTitle
---   --where main_collectionid=id or data_source='EM'
--- ) 
-
-
--- ,Launch_date_first_collection_updated  AS (
---   SELECT *
---   FROM ${ref("Launch_date_first_collection_updated")}
--- )
-
--- ,final_transf As (
---   SELECT swcd.*,ldfc.Launch_date_of_the_first_collection_launched_by_CA_team as launch_dt_first_collection
---   FROM submissions_with_collections_api_data swcd
---   LEFT JOIN Launch_date_first_collection_updated ldfc
---   ON swcd.JournalKey=ldfc.Journal_title_number
--- )
-
--- Select *,
--- CASE
--- WHEN startDate>= launch_dt_first_collection and first_submission_dt>= launch_dt_first_collection THEN 'CA launched collection and CA sub'
--- WHEN startDate< launch_dt_first_collection and first_submission_dt>= launch_dt_first_collection THEN 'CA managed collection and CA sub'
--- ELSE 'Not managed by CA'
--- END as CA_team_management_status
--- from final_transf
--- --where row_num_editor=1 
 
 
 
