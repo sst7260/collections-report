@@ -3,13 +3,6 @@
     {
       "name": "production",
       "configOverride": {},
-      "schedules": [
-        {
-          "name": "collections_schedule",
-          "cron": "48 6 * * *",
-          "disabled": true
-        }
-      ],
       "gitRef": "master"
     },
     {
