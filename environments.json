@@ -6,7 +6,7 @@
       "gitRef": "master"
     },
     {
-      "name": "new_environment",
+      "name": "dev_environment",
       "gitRef": "master"
     }
   ],
